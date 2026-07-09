@@ -63,3 +63,10 @@ func UserText(s string) Message {
 func AssistantText(s string) Message {
 	return Message{Role: RoleAssistant, Parts: []Part{Text{Text: s}}}
 }
+
+// SystemText returns a system Message containing a single text part. Drivers
+// fold system messages into the provider's system prompt; the Request.System
+// field is an equivalent shorthand for a single instruction.
+func SystemText(s string) Message {
+	return Message{Role: RoleSystem, Parts: []Part{Text{Text: s}}}
+}

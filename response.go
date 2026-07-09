@@ -44,10 +44,22 @@ func (r *Response) ToolCalls() []ToolUse {
 	return out
 }
 
+// ToolCall returns the first tool call with the given name and whether one was
+// found. It is a convenience for dispatching a single expected tool.
+func (r *Response) ToolCall(name string) (ToolUse, bool) {
+	for _, p := range r.Parts {
+		if tu, ok := p.(ToolUse); ok && tu.Name == name {
+			return tu, true
+		}
+	}
+	return ToolUse{}, false
+}
+
 // Chunk is one increment of a streaming response from [Client.Stream]. Text is
-// the incremental text delta; ToolCall is set when the chunk carries part of a
-// tool call; Usage is set on the final chunk when the provider reports it; Done
-// marks the last chunk. Raw keeps the provider's original event JSON.
+// the incremental text delta; ToolCall is set when the chunk carries a
+// completed tool call; Done marks the final chunk. Drivers set Usage on the
+// Done chunk; its counts are zero when the provider did not report usage. Raw
+// keeps the provider's original event JSON.
 type Chunk struct {
 	Text     string
 	ToolCall *ToolUse

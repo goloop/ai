@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1]
+
+### Fixed
+- `Options.Do` now returns the final error response after exhausting retries
+  instead of a bare status error, so drivers can read and report the provider's
+  error body. Retries are limited to transient statuses (429, 500, 502, 503,
+  504, 529); other 5xx are no longer retried. A `Retry-After` header is honored
+  (capped at 30s), and the backoff cap is applied before the shift to avoid
+  overflow at large retry counts.
+
+### Added
+- `SystemText` helper, symmetric with `UserText` and `AssistantText`.
+- `Response.ToolCall(name)` to fetch the first tool call by name.
+- Test suite (transport, SSE, request/response, options) and runnable examples.
+
+### Changed
+- Clarified the `Chunk.Usage` contract: drivers set it on the Done chunk, with
+  zero counts when the provider did not report usage.
+
 ## [0.1.0]
 
 First release: the provider-agnostic interface and shared types for goloop AI
