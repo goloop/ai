@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.1]
+## [0.1.1] - 2026-07-09
 
 ### Fixed
 - `Options.Do` now returns the final error response after exhausting retries
@@ -18,7 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `SystemText` helper, symmetric with `UserText` and `AssistantText`.
 - `Response.ToolCall(name)` to fetch the first tool call by name.
-- Test suite (transport, SSE, request/response, options) and runnable examples.
+- Test suite (transport, SSE, request/response, options), a property-based fuzz
+  test for the SSE parser, and runnable examples.
 
 ### Changed
 - Clarified the `Chunk.Usage` contract: drivers set it on the Done chunk, with
