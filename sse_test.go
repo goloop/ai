@@ -97,6 +97,69 @@ func TestSSEEventsEarlyStop(t *testing.T) {
 	}
 }
 
+// FuzzSSEEvents checks that the parser never panics on arbitrary input and that
+// parsing is stable: re-encoding the events it produces and parsing them again
+// yields exactly the same events.
+func FuzzSSEEvents(f *testing.F) {
+	for _, s := range []string{
+		"data: hello\n\ndata: world\n\n",
+		"data:hi\ndata:there\n\n",
+		": comment\nevent: x\nid: 1\ndata: y\n\n",
+		"data: last",
+		"\n\n\n",
+		"data:\ndata:x\n\n",
+		"data: a\ndata:\ndata: b\n\n",
+	} {
+		f.Add(s)
+	}
+	f.Fuzz(func(t *testing.T, in string) {
+		var events []string
+		for data, err := range SSEEvents(strings.NewReader(in)) {
+			if err != nil {
+				return // a strings.Reader never errors; nothing to check
+			}
+			events = append(events, data)
+		}
+
+		// A carriage return is a structural line terminator that the parser
+		// strips as CRLF tolerance, so an event carrying one cannot round-trip
+		// through data lines. The no-panic and termination guarantees above
+		// still hold; only the stability property below needs a clean payload.
+		for _, e := range events {
+			if strings.ContainsRune(e, '\r') {
+				return
+			}
+		}
+
+		// Re-encode each event as data lines and parse again.
+		var b strings.Builder
+		for _, e := range events {
+			for _, line := range strings.Split(e, "\n") {
+				b.WriteString("data: ")
+				b.WriteString(line)
+				b.WriteByte('\n')
+			}
+			b.WriteByte('\n')
+		}
+		var round []string
+		for data, err := range SSEEvents(strings.NewReader(b.String())) {
+			if err != nil {
+				t.Fatalf("re-parse error: %v", err)
+			}
+			round = append(round, data)
+		}
+
+		if len(round) != len(events) {
+			t.Fatalf("event count changed: %d -> %d (%q)", len(events), len(round), events)
+		}
+		for i := range events {
+			if round[i] != events[i] {
+				t.Fatalf("event %d changed: %q -> %q", i, events[i], round[i])
+			}
+		}
+	})
+}
+
 // errReader returns err on the first read.
 type errReader struct {
 	err error
