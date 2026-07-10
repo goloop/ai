@@ -162,7 +162,7 @@ func TestDoTransportError(t *testing.T) {
 func TestBackoff(t *testing.T) {
 	cases := []struct {
 		attempt int
-		want    time.Duration
+		base    time.Duration
 	}{
 		{1, 250 * time.Millisecond},
 		{2, 500 * time.Millisecond},
@@ -172,20 +172,26 @@ func TestBackoff(t *testing.T) {
 		{40, 8 * time.Second}, // guard, no negative from overflow
 	}
 	for _, c := range cases {
-		if got := backoff(c.attempt); got != c.want {
-			t.Errorf("backoff(%d) = %v, want %v", c.attempt, got, c.want)
+		// Equal jitter keeps every result within [base/2, base].
+		for i := 0; i < 200; i++ {
+			got := backoff(c.attempt)
+			if got < c.base/2 || got > c.base {
+				t.Fatalf("backoff(%d) = %v, want within [%v, %v]",
+					c.attempt, got, c.base/2, c.base)
+			}
 		}
 	}
 }
 
 func TestIsRetriable(t *testing.T) {
-	retriable := []int{429, 500, 502, 503, 504, 529}
+	retriable := []int{429, 502, 503, 504, 529}
 	for _, s := range retriable {
 		if !isRetriable(s) {
 			t.Errorf("isRetriable(%d) = false, want true", s)
 		}
 	}
-	notRetriable := []int{200, 400, 401, 404, 501, 505}
+	// 500 is not retried: driver POSTs are non-idempotent.
+	notRetriable := []int{200, 400, 401, 404, 500, 501, 505}
 	for _, s := range notRetriable {
 		if isRetriable(s) {
 			t.Errorf("isRetriable(%d) = true, want false", s)

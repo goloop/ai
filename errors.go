@@ -10,7 +10,6 @@ import (
 var (
 	ErrNoModel    = errors.New("ai: model is required")
 	ErrNoMessages = errors.New("ai: at least one message is required")
-	ErrNoAPIKey   = errors.New("ai: API key is required")
 )
 
 // APIError is a normalized error for a non-success HTTP response from a

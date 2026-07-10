@@ -3,16 +3,18 @@ package ai
 import (
 	"bytes"
 	"context"
+	"math/rand/v2"
 	"net/http"
 	"strconv"
 	"time"
 )
 
 // Do sends an HTTP request using the configured client and headers, retrying
-// transient responses (HTTP 429, 500, 502, 503, 504 and 529) up to MaxRetries
-// with exponential backoff. A Retry-After header on the response is honored,
-// capped at 30s. The Options headers are applied first, then the per-call
-// headers override them.
+// transient responses (HTTP 429, 502, 503, 504 and 529) up to MaxRetries with
+// jittered exponential backoff. A Retry-After header on the response is
+// honored, capped at 30s. HTTP 500 is not retried, because driver requests are
+// non-idempotent POSTs. The Options headers are applied first, then the
+// per-call headers override them.
 //
 // On the final attempt the response is returned as-is even when its status is
 // an error, so the caller can read the provider's error body (drivers check the
@@ -86,13 +88,15 @@ func (o Options) Do(
 func isRetriable(status int) bool {
 	switch status {
 	case http.StatusTooManyRequests, // 429
-		http.StatusInternalServerError, // 500
-		http.StatusBadGateway,          // 502
-		http.StatusServiceUnavailable,  // 503
-		http.StatusGatewayTimeout,      // 504
-		529:                            // Anthropic: overloaded
+		http.StatusBadGateway,         // 502
+		http.StatusServiceUnavailable, // 503
+		http.StatusGatewayTimeout,     // 504
+		529:                           // Anthropic: overloaded
 		return true
 	default:
+		// 500 is deliberately not retried: driver requests are
+		// non-idempotent POSTs, and a 500 may mean the provider already did
+		// the work (and charged for it) before failing to respond.
 		return false
 	}
 }
@@ -121,12 +125,13 @@ func retryDelay(resp *http.Response, attempt int) time.Duration {
 // 1s, ... capped at 8s. The cap is applied before the shift to avoid
 // overflowing the duration for large attempt counts.
 func backoff(attempt int) time.Duration {
-	if attempt > 6 {
-		return 8 * time.Second
+	d := 8 * time.Second
+	if attempt <= 6 {
+		if shifted := (250 * time.Millisecond) << (attempt - 1); shifted < d {
+			d = shifted
+		}
 	}
-	d := (250 * time.Millisecond) << (attempt - 1)
-	if d > 8*time.Second {
-		return 8 * time.Second
-	}
-	return d
+	// Equal jitter (half fixed, half random) spreads retries out so many
+	// clients that hit a 429 at once do not wake up in lockstep.
+	return d/2 + rand.N(d/2+1)
 }

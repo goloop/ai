@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-07-10
+
+### Removed
+- `ErrNoAPIKey` sentinel. It was never returned by any code, and the core
+  cannot enforce key presence because keyless providers (Ollama) are valid.
+
+### Changed
+- HTTP 500 is no longer retried. Driver requests are non-idempotent POSTs, and
+  a 500 may mean the provider already did the work (and charged for it) before
+  failing to respond. Retries stay on 429, 502, 503, 504 and 529.
+- Backoff now applies equal jitter, so many clients that hit a 429 at once do
+  not retry in lockstep.
+
 ## [0.1.1] - 2026-07-09
 
 ### Fixed
