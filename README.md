@@ -67,6 +67,10 @@ Drivers reuse the shared configuration and transport:
 Endpoints providers do not share (embeddings, images, audio, files, batches)
 are not part of the interface; each driver exposes them as native methods.
 
+## Documentation
+
+Full reference: **[DOC.md](DOC.md)** (Ukrainian: **[DOC.UK.md](DOC.UK.md)**).
+
 ## License
 
 MIT - see [LICENSE](LICENSE).
