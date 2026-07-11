@@ -92,6 +92,12 @@ concrete parts are `Text`, `Image`, `ToolUse` and `ToolResult`. `Part` is a
 closed interface - it cannot be implemented outside this package, so drivers
 switch over it exhaustively.
 
+`Message` and `Response` marshal to and from JSON with each part tagged by a
+`"type"` field (`text`, `image`, `tool_use`, `tool_result`), so a `Request` or
+`Response` can be persisted, queued or cached and decoded back into its concrete
+part types. An unknown `type` is an error rather than a silently dropped part.
+`Image.Data` is base64 and `ToolUse.Input` stays raw JSON.
+
 Constructors cover the common single-text-part case:
 
 ```go

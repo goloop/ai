@@ -1,8 +1,11 @@
 package ai
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -103,5 +106,125 @@ func TestAPIErrorMessage(t *testing.T) {
 	noMsg := &APIError{Status: 500}
 	if noMsg.Error() != "ai: api error 500" {
 		t.Errorf("Error() = %q", noMsg.Error())
+	}
+}
+
+func TestRequestValidateNil(t *testing.T) {
+	var r *Request
+	if err := r.Validate(); !errors.Is(err, ErrNoRequest) {
+		t.Fatalf("nil request: got %v, want ErrNoRequest", err)
+	}
+}
+
+func TestDoGuardsNegativeRetriesAndNilClient(t *testing.T) {
+	// A directly built Options with a negative retry count and no client must
+	// not panic or silently return (nil, nil). Point it at an unroutable
+	// address so the single attempt fails cleanly at the transport layer.
+	o := Options{MaxRetries: -3}
+	resp, err := o.Do(context.Background(), "GET", "http://127.0.0.1:0/", nil, nil)
+	if resp != nil {
+		resp.Body.Close()
+		t.Fatal("expected no response for a failed transport attempt")
+	}
+	if err == nil {
+		t.Fatal("expected a transport error, got nil (loop was skipped)")
+	}
+}
+
+func TestOptionsStringRedactsAPIKey(t *testing.T) {
+	o := NewOptions("sk-secret-value")
+	if s := o.String(); strings.Contains(s, "sk-secret-value") {
+		t.Fatalf("String leaked the API key: %s", s)
+	}
+	if s := fmt.Sprintf("%+v", o); strings.Contains(s, "sk-secret-value") {
+		t.Fatalf("%%+v leaked the API key: %s", s)
+	}
+}
+
+func TestMessageJSONRoundTrip(t *testing.T) {
+	msg := Message{Role: RoleUser, Parts: []Part{
+		Text{Text: "hello"},
+		Image{MIME: "image/png", Data: []byte{1, 2, 3}},
+		ToolUse{ID: "call_1", Name: "lookup", Input: json.RawMessage(`{"q":"x"}`)},
+		ToolResult{ID: "call_1", Content: "done", IsError: true},
+	}}
+	data, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var got Message
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got.Role != RoleUser || len(got.Parts) != 4 {
+		t.Fatalf("round-trip lost structure: %+v", got)
+	}
+	if _, ok := got.Parts[0].(Text); !ok {
+		t.Fatalf("part 0 = %T, want Text", got.Parts[0])
+	}
+	tu, ok := got.Parts[2].(ToolUse)
+	if !ok || string(tu.Input) != `{"q":"x"}` {
+		t.Fatalf("tool_use round-trip: %+v", got.Parts[2])
+	}
+	tr, ok := got.Parts[3].(ToolResult)
+	if !ok || tr.ID != "call_1" || !tr.IsError {
+		t.Fatalf("tool_result round-trip: %+v", got.Parts[3])
+	}
+}
+
+func TestMessageJSONUnknownPartRejected(t *testing.T) {
+	var m Message
+	err := json.Unmarshal([]byte(`{"role":"user","parts":[{"type":"mystery"}]}`), &m)
+	if err == nil {
+		t.Fatal("unknown part type should be rejected, not silently dropped")
+	}
+}
+
+func TestRequestJSONRoundTrip(t *testing.T) {
+	req := &Request{Model: "m", Messages: []Message{UserText("hi")}, MaxTokens: 10}
+	data, err := json.Marshal(req)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var got Request
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got.Model != "m" || len(got.Messages) != 1 || got.Messages[0].Role != RoleUser {
+		t.Fatalf("round-trip lost request: %+v", got)
+	}
+}
+
+func TestResponseJSONRoundTrip(t *testing.T) {
+	resp := Response{
+		Model:      "m",
+		Parts:      []Part{Text{Text: "hi"}, ToolUse{ID: "c1", Name: "f", Input: json.RawMessage(`{}`)}},
+		StopReason: "stop",
+		Usage:      Usage{InputTokens: 3, OutputTokens: 2},
+		Raw:        json.RawMessage(`{"provider":"x"}`),
+	}
+	data, err := json.Marshal(resp)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(data), `"input_tokens":3`) {
+		t.Fatalf("usage not snake_case: %s", data)
+	}
+	var got Response
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got.Model != "m" || got.StopReason != "stop" || got.Usage.OutputTokens != 2 {
+		t.Fatalf("round-trip lost fields: %+v", got)
+	}
+	if got.Text() != "hi" || len(got.ToolCalls()) != 1 {
+		t.Fatalf("round-trip lost parts: %+v", got)
+	}
+}
+
+func TestOptionsGoStringRedacts(t *testing.T) {
+	o := NewOptions("sk-xyz")
+	if s := fmt.Sprintf("%#v", o); strings.Contains(s, "sk-xyz") {
+		t.Fatalf("%%#v leaked the API key: %s", s)
 	}
 }

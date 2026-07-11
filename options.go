@@ -1,6 +1,7 @@
 package ai
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -16,6 +17,21 @@ type Options struct {
 	MaxRetries int
 	Headers    http.Header
 }
+
+// String renders the Options with the API key redacted, so printing a client
+// or its options with %v or %+v never leaks the credential into logs.
+func (o Options) String() string {
+	key := "unset"
+	if o.APIKey != "" {
+		key = "[redacted]"
+	}
+	return fmt.Sprintf(
+		"ai.Options{APIKey:%s BaseURL:%q Timeout:%s MaxRetries:%d}",
+		key, o.BaseURL, o.Timeout, o.MaxRetries)
+}
+
+// GoString redacts the API key for the %#v verb, matching String.
+func (o Options) GoString() string { return o.String() }
 
 // Option configures Options. The same options work across every provider, so
 // client construction looks the same everywhere.

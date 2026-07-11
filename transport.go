@@ -32,10 +32,22 @@ func (o Options) Do(
 	body []byte,
 	headers http.Header,
 ) (*http.Response, error) {
+	// A directly constructed Options (not via NewOptions) may have a nil client
+	// or a negative retry count; guard both so Do never panics or silently
+	// returns (nil, nil) by skipping the loop entirely.
+	client := o.HTTPClient
+	if client == nil {
+		client = http.DefaultClient
+	}
+	maxRetries := o.MaxRetries
+	if maxRetries < 0 {
+		maxRetries = 0
+	}
+
 	var lastErr error
 	var delay time.Duration
 
-	for attempt := 0; attempt <= o.MaxRetries; attempt++ {
+	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
 			select {
 			case <-ctx.Done():
@@ -59,7 +71,7 @@ func (o Options) Do(
 			req.Header[http.CanonicalHeaderKey(k)] = append([]string(nil), vs...)
 		}
 
-		resp, err := o.HTTPClient.Do(req)
+		resp, err := client.Do(req)
 		if err != nil {
 			lastErr = err
 			delay = backoff(attempt + 1)
@@ -69,7 +81,7 @@ func (o Options) Do(
 		// Retry transient statuses while attempts remain. On the last
 		// attempt, fall through and return the response so the caller can
 		// read the error body.
-		if attempt < o.MaxRetries && isRetriable(resp.StatusCode) {
+		if attempt < maxRetries && isRetriable(resp.StatusCode) {
 			delay = retryDelay(resp, attempt+1)
 			resp.Body.Close()
 			lastErr = &APIError{Status: resp.StatusCode}

@@ -15,8 +15,13 @@ type Request struct {
 	Stop        []string
 }
 
-// Validate reports whether the request has the minimum a provider needs.
+// Validate reports whether the request has the minimum a provider needs. A nil
+// request is reported as ErrNoRequest rather than panicking, so a driver can
+// forward a bad call as a normal error.
 func (r *Request) Validate() error {
+	if r == nil {
+		return ErrNoRequest
+	}
 	if r.Model == "" {
 		return ErrNoModel
 	}

@@ -7,8 +7,8 @@ import (
 
 // Usage reports how many tokens a request consumed.
 type Usage struct {
-	InputTokens  int
-	OutputTokens int
+	InputTokens  int `json:"input_tokens"`
+	OutputTokens int `json:"output_tokens"`
 }
 
 // Response is the result of a non-streaming [Client.Generate] call. Parts holds

@@ -8,6 +8,7 @@ import (
 
 // Sentinel errors returned before a request reaches the network.
 var (
+	ErrNoRequest  = errors.New("ai: request is nil")
 	ErrNoModel    = errors.New("ai: model is required")
 	ErrNoMessages = errors.New("ai: at least one message is required")
 )

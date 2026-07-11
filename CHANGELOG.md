@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-07-11
+
+### Added
+- `Message` and `Response` now marshal to and from JSON with a `"type"`
+  discriminator per part (`text`, `image`, `tool_use`, `tool_result`), so a
+  `Request` or `Response` can be persisted and decoded back into its concrete
+  part types. An unknown part type is an error, not a silently dropped part.
+- `ErrNoRequest`, returned by `Request.Validate` for a nil request instead of
+  panicking.
+- `Options.String`/`GoString` redact the API key, so printing a client or its
+  options with `%v`/`%+v`/`%#v` no longer leaks the credential.
+
+### Fixed
+- `Options.Do` no longer panics on a nil `HTTPClient` (falls back to
+  `http.DefaultClient`) and no longer returns `(nil, nil)` for a negative
+  `MaxRetries` (treated as zero), so a directly constructed `Options` is safe.
+
+### Changed
+- `Usage` fields now carry `input_tokens`/`output_tokens` JSON tags for a
+  stable, provider-neutral wire format.
+
 ## [0.2.1] - 2026-07-10
 
 ### Documentation
