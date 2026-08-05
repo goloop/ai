@@ -243,8 +243,29 @@ can do neither returns `ErrNoFormat`; none of them silently drops the request.
 | `FormatNative` | the provider enforced it |
 | `FormatEmulated` | the driver asked for it in the prompt |
 
-An emulated format is a request, not a guarantee, which is worth knowing when a
-reply turns out malformed.
+An emulated format is a request, not a guarantee. The distinction is worth
+acting on, not just reading:
+
+```go
+resp, err := client.Generate(ctx, req)
+if err != nil {
+	return err
+}
+
+var seo SEO
+if err := resp.JSON(&seo); err != nil {
+	if resp.Format == ai.FormatEmulated {
+		// The model was asked, not constrained. A retry, a smaller schema or
+		// a different provider are all reasonable; the request itself is fine.
+	}
+	return err
+}
+```
+
+Code that cannot proceed without an enforced shape should say so - check for
+`resp.Format == ai.FormatNative` before the call is worth making, or validate
+the decoded value afterwards. `Response.JSON` proves the reply parses, not that
+it satisfies the schema; no driver validates against `Format.Schema` locally.
 
 ### Decoding the reply
 

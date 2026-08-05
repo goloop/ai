@@ -30,6 +30,12 @@
 // format in the prompt where it does not, and reports which it did in
 // Response.Format. No driver drops a Format silently.
 //
+// FormatEmulated is not a weaker FormatNative, it is a different thing: the
+// model was asked, not constrained. Code that cannot proceed without an
+// enforced shape should check for FormatNative, or validate the decoded value
+// itself - Response.JSON proves the reply parses, not that it matches the
+// schema.
+//
 // Endpoints that providers do not share (embeddings, image generation, audio,
 // files, batches, and so on) are not part of this interface. Each driver
 // exposes those as its own native methods, so the common surface stays small

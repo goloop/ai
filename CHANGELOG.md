@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-08-05
+
+### Documentation
+- `FormatEmulated` is spelled out as a different thing from `FormatNative`
+  rather than a weaker one: the model was asked, not constrained. The reference
+  shows what to do about it - check for `FormatNative` when an enforced shape
+  is required, or validate the decoded value - and states plainly that
+  `Response.JSON` proves the reply parses, not that it matches the schema.
+
 ## [0.4.0] - 2026-08-05
 
 ### Added
