@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-08-05
+
+### Added
+- `Request.Format` asks for a structured response - `FormatJSON` for any valid
+  JSON value, `FormatJSONSchema` for one matching a JSON Schema. Until now only
+  a driver's own native request type could ask for JSON, so every caller that
+  wanted a structured answer through the provider-agnostic interface had to
+  strip code fences and hunt for braces by hand.
+- `Response.JSON(&v)` decodes the reply. It unwraps a response wrapped whole in
+  a Markdown code fence and then decodes strictly: prose around the value, or a
+  second value after it, is an error rather than something to salvage. A reply
+  with no text returns `ErrNoText`.
+- `Response.Format` reports how the request's `Format` was satisfied:
+  `FormatNative` (the provider enforced it), `FormatEmulated` (the driver asked
+  for it in the prompt) or `FormatNone`. An emulated format is a request, not a
+  guarantee, and a caller can now tell the difference.
+- `Format.Instruction` and `Format.AppendInstruction` hold the wording a driver
+  puts in the prompt when its provider has no native support, so all drivers
+  ask for the same thing in the same words.
+- `ErrNoSchema` and `ErrBadSchema`, returned by `Request.Validate` for a schema
+  format with no schema or with one that is not a JSON Schema object;
+  `ErrBadFormat` for an unrecognised `FormatType`, which is rejected rather than
+  guessed at because every driver switches over it; `ErrNoFormat` for a driver
+  whose provider can neither enforce the format nor be asked for it usefully;
+  `ErrNoText` for `Response.JSON`.
+
+### Changed
+- `Request.Validate` now also validates `Format`. A request without one is
+  unaffected: `Format` is nil by default and asks for nothing.
+
 ## [0.3.0] - 2026-07-11
 
 ### Added

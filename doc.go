@@ -22,6 +22,14 @@
 // to express multimodal input and tool calling across providers. Generate
 // returns a whole Response; Stream yields Chunks as they arrive.
 //
+// # Structured output
+//
+// Request.Format asks for JSON, optionally matching a JSON Schema, and
+// Response.JSON decodes the reply into a Go value. Providers differ in what
+// they can enforce: a driver uses native support where it exists, asks for the
+// format in the prompt where it does not, and reports which it did in
+// Response.Format. No driver drops a Format silently.
+//
 // Endpoints that providers do not share (embeddings, image generation, audio,
 // files, batches, and so on) are not part of this interface. Each driver
 // exposes those as its own native methods, so the common surface stays small

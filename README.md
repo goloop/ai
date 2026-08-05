@@ -34,7 +34,9 @@ type Client interface {
 - `Part`: `Text`, `Image` (multimodal), `ToolUse`, `ToolResult` (tool calling).
 - `Tool` and `ToolChoice` for function calling.
 - `Request` (model, system, messages, tools, sampling knobs).
-- `Response` with `Text()` and `ToolCalls()` helpers; `Chunk` for streaming.
+- `Format` for structured output: ask for JSON, or JSON matching a schema.
+- `Response` with `Text()`, `JSON(&v)` and `ToolCalls()` helpers; `Chunk` for
+  streaming.
 - `Usage` for token counts; `APIError` for normalized provider errors.
 
 ## Using a provider

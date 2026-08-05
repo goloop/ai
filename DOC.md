@@ -14,6 +14,7 @@ Ukrainian version: **[DOC.UK.md](DOC.UK.md)**.
 - [Generate](#generate)
 - [Stream](#stream)
 - [Tools](#tools)
+- [Structured output](#structured-output)
 - [Multimodal input](#multimodal-input)
 - [Errors](#errors)
 - [For driver authors: Options and transport](#for-driver-authors-options-and-transport)
@@ -71,6 +72,7 @@ type Request struct {
 	Temperature *float64 // pointer: unset is distinct from an explicit 0
 	TopP        *float64
 	Stop        []string
+	Format      *Format // ask for JSON; see "Structured output"
 }
 ```
 
@@ -128,12 +130,14 @@ type Response struct {
 	StopReason string
 	Usage      Usage
 	Raw        json.RawMessage // the provider's original JSON
+	Format     FormatMode      // how Request.Format was satisfied
 }
 ```
 
-Helpers: `Text()` concatenates the text parts, `ToolCalls()` returns all tool
-calls, and `ToolCall(name)` returns the first call to a named tool. `Raw` keeps
-the provider's original JSON for fields this package does not model.
+Helpers: `Text()` concatenates the text parts, `JSON(&v)` decodes that text,
+`ToolCalls()` returns all tool calls, and `ToolCall(name)` returns the first
+call to a named tool. `Raw` keeps the provider's original JSON for fields this
+package does not model.
 
 ## Stream
 
@@ -187,6 +191,78 @@ for _, call := range resp.ToolCalls() {
 drivers pass it through in the shape the provider expects. To answer a tool
 call, append a `RoleTool` message with a `ToolResult` whose `ID` matches the
 `ToolUse`.
+
+## Structured output
+
+Set `Request.Format` when the reply has to be JSON rather than prose:
+
+```go
+resp, err := client.Generate(ctx, &ai.Request{
+	Model:    "the-model",
+	Messages: []ai.Message{ai.UserText("Draft SEO fields for this article.")},
+	Format: &ai.Format{
+		Type:   ai.FormatJSONSchema,
+		Name:   "seo",
+		Schema: json.RawMessage(`{"type":"object", ...}`),
+	},
+})
+if err != nil {
+	// handle error
+}
+
+var seo SEO
+if err := resp.JSON(&seo); err != nil {
+	// the model did not answer with the value it was asked for
+}
+```
+
+```go
+type Format struct {
+	Type   FormatType      // FormatText (default), FormatJSON, FormatJSONSchema
+	Name   string          // schema name, for providers that require one
+	Schema json.RawMessage // a JSON Schema; required for FormatJSONSchema
+	Strict bool            // ask the provider to enforce the schema exactly
+}
+```
+
+`FormatJSON` asks for any valid JSON value; `FormatJSONSchema` asks for one
+matching `Schema`. `Request.Validate` rejects a schema format with no schema
+(`ErrNoSchema`) or with a schema that is not valid JSON (`ErrBadSchema`),
+before a driver builds anything out of it.
+
+**Providers differ, and a driver never hides it.** Where the provider supports
+structured output natively, the driver uses it. Where it does not, the driver
+asks for the format in the prompt, in wording shared by every driver
+(`Format.Instruction`), so provider-agnostic code stays portable. A driver that
+can do neither returns `ErrNoFormat`; none of them silently drops the request.
+`Response.Format` reports which happened:
+
+| `FormatMode` | Meaning |
+|---|---|
+| `FormatNone` | nothing was requested |
+| `FormatNative` | the provider enforced it |
+| `FormatEmulated` | the driver asked for it in the prompt |
+
+An emulated format is a request, not a guarantee, which is worth knowing when a
+reply turns out malformed.
+
+### Decoding the reply
+
+`Response.JSON(&v)` decodes the response text. It unwraps a reply that is
+wrapped whole in a Markdown code fence - a provider that was only asked in the
+prompt tends to add one - and then decodes strictly:
+
+| Reply | Result |
+|---|---|
+| `{"a":"x"}` | decodes |
+| the same value wrapped whole in a fenced block | decodes |
+| `Sure! {"a":"x"}` | error: prose around the value |
+| `{"a":"x"} {"b":"y"}` | error: two values |
+| a fenced block inside prose | error: the reply is prose |
+
+It deliberately does **not** hunt for the first `{` and the last `}`. Salvaging
+JSON out of arbitrary text is how a wrong answer gets read as a right one. A
+reply with no text at all (only tool calls) gives `ErrNoText`.
 
 ## Multimodal input
 
