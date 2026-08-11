@@ -15,6 +15,7 @@ Ukrainian version: **[DOC.UK.md](DOC.UK.md)**.
 - [Stream](#stream)
 - [Tools](#tools)
 - [Structured output](#structured-output)
+- [Hosted capabilities](#hosted-capabilities)
 - [Multimodal input](#multimodal-input)
 - [Errors](#errors)
 - [For driver authors: Options and transport](#for-driver-authors-options-and-transport)
@@ -285,6 +286,128 @@ It deliberately does **not** hunt for the first `{` and the last `}`. Salvaging
 JSON out of arbitrary text is how a wrong answer gets read as a right one. A
 reply with no text at all (only tool calls) gives `ErrNoText`.
 
+## Hosted capabilities
+
+Some providers can run work on their own side, web search first among them.
+`Request.Hosted` asks for it:
+
+```go
+resp, err := client.Generate(ctx, &ai.Request{
+	Model:    "the-model",
+	Messages: []ai.Message{ai.UserText("What shipped this week?")},
+	Hosted:   []ai.Hosted{{Kind: ai.HostedWebSearch}},
+})
+for _, c := range resp.Citations() {
+	fmt.Println(c.Title, c.URL)
+}
+```
+
+This is a separate field from `Tools`, and that is the whole design. A `Tool`
+is a promise that *you* will answer a `ToolUse` with a `ToolResult`. A hosted
+capability never comes back to you: the provider runs it and folds the result
+into the answer. Putting both in one slice would mean every tool loop ever
+written has to learn which calls to answer and which to ignore - code that
+still compiles and now behaves differently, the worst kind of change. A loop
+that has never heard of `Hosted` keeps working exactly as it did.
+
+### Narrowing the search
+
+```go
+ai.Hosted{
+	Kind: ai.HostedWebSearch,
+	Web: &ai.HostedWeb{
+		MaxUses:      3,
+		AllowDomains: []string{"example.org"},
+		Region:       "UA",
+	},
+}
+```
+
+Every field of `HostedWeb` is a constraint, not a hint. Providers differ in
+what they can express: one takes a use limit, another only a list of allowed
+domains, a third nothing at all. A driver that cannot express a field you set
+returns `ErrNoHosted` rather than running a wider search than you asked for -
+an answer built from sources you excluded is worse than no answer.
+
+### Sources
+
+Citations hang off the `Text` they support, because which sentence a source
+backs is the point of having sources:
+
+```go
+type Citation struct {
+	URL       string
+	Title     string
+	CitedText string // the source's own words, when the provider reports them
+	StartByte int    // span of the Text this source backs, when known
+	EndByte   int
+}
+```
+
+Providers report one or the other, rarely both. Some give you the fragment of
+the source they used and no position in your answer; some give you a byte range
+into your answer and never the source's words. Both zero offsets mean "this
+source backs the whole part". A driver whose provider counts in something other
+than bytes converts or leaves the range at zero, so a range is never wrong even
+when it is absent.
+
+### Did it actually search?
+
+`Response.Hosted` says what became of each capability you asked for:
+
+```go
+for _, h := range resp.Hosted {
+	switch h.Mode {
+	case ai.HostedNative:  // it ran, h.Calls times
+	case ai.HostedSkipped: // it was offered and the model did not use it
+	}
+}
+```
+
+`HostedSkipped` is the state worth watching. A provider can accept a search
+tool and then answer from the model's own memory, and from the outside the two
+answers look identical - which is exactly how a confident invention gets
+mistaken for a researched answer. When you cannot accept that, say so:
+
+```go
+Hosted: []ai.Hosted{{Kind: ai.HostedWebSearch, Policy: ai.HostedRequired}}
+```
+
+and a search that did not happen is `ErrHostedRequired` instead of an answer.
+
+`HostedReport.Calls` is how many times the provider ran it. Hosted work is
+usually billed apart from tokens, so this is the only place that cost shows up;
+`Usage` stays token-only.
+
+### When a provider cannot
+
+`ErrNoHosted`, before the request leaves. Unlike a `Format`, which a driver can
+ask for in the prompt, a search cannot be emulated - a driver has no search
+engine of its own. If you would rather have the answer without the search, ask
+again without `Hosted`; that is one visible `if` rather than a silent
+difference in what an answer is based on.
+
+### Structured output and search together
+
+Several providers refuse a strict schema and a server-side tool in one call. A
+driver that knows its provider cannot combine them returns
+`ErrFormatWithHosted` before the request leaves, rather than letting the
+provider reject it in its own words or return JSON that quietly does not match
+the schema.
+
+The way around it is two calls: one that searches and answers in prose, one
+without `Hosted` that reshapes that prose into the schema. It costs twice and
+it is predictable, which is the better trade when the alternative is a
+well-formed value that is not the value you asked for.
+
+### Streaming
+
+`Chunk.Citations` carries sources as their events arrive, and `Chunk.Hosted`
+reports on the final chunk. A citation arrives in the chunk the provider
+announces it in, which is not necessarily the chunk carrying the text it
+supports, so assemble your own list rather than pairing them position by
+position.
+
 ## Multimodal input
 
 `Image` is an image content part - provide either inline bytes or a URL:
@@ -324,7 +447,15 @@ if errors.As(err, &apiErr) && apiErr.Status == 429 {
 ```
 
 Request validation returns the sentinels `ErrNoModel` and `ErrNoMessages`
-(match with `errors.Is`).
+(match with `errors.Is`), and `ErrBadHosted`, `ErrBadHostedPolicy` or
+`ErrDupHosted` for a malformed `Hosted`.
+
+Hosted capabilities add two more, both from drivers rather than validation:
+`ErrNoHosted` when the provider cannot run what was asked for (or cannot run it
+under the given constraints), and `ErrFormatWithHosted` when it cannot combine
+one with a structured format. `ErrHostedRequired` says the request was sent and
+the model did not use a capability that `HostedRequired` made part of the
+contract.
 
 ## For driver authors: Options and transport
 

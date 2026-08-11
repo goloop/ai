@@ -35,8 +35,11 @@ type Client interface {
 - `Tool` and `ToolChoice` for function calling.
 - `Request` (model, system, messages, tools, sampling knobs).
 - `Format` for structured output: ask for JSON, or JSON matching a schema.
-- `Response` with `Text()`, `JSON(&v)` and `ToolCalls()` helpers; `Chunk` for
-  streaming.
+- `Hosted` for work the provider runs itself, such as web search, with
+  `Citation` for the sources it came back with and `HostedReport` for whether
+  it ran at all.
+- `Response` with `Text()`, `JSON(&v)`, `ToolCalls()` and `Citations()`
+  helpers; `Chunk` for streaming.
 - `Usage` for token counts; `APIError` for normalized provider errors.
 
 ## Using a provider

@@ -5,6 +5,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-08-11
+
+First stable release. This package fixes the contract every driver speaks, so
+the one thing the interface could not express - a capability the provider runs
+on its own side - is settled before the contract is.
+
+### Added
+- `Request.Hosted` asks the provider to run a capability itself, web search
+  first among them. It is a field of its own rather than a kind of `Tool`: a
+  `Tool` is a promise that the caller will answer a `ToolUse` with a
+  `ToolResult`, and a hosted capability never comes back to the caller at all.
+  A tool loop written before this existed keeps working unchanged, because it
+  never sees a call it does not know how to answer.
+- `Hosted`, `HostedKind`, `HostedPolicy` and `HostedWeb` say what is wanted.
+  The web-search settings (`MaxUses`, `AllowDomains`, `BlockDomains`, `Region`)
+  live in `HostedWeb`, so the shape of one capability does not become the shape
+  every later one has to wear.
+- `Response.Hosted` reports what each requested capability did, as a list
+  rather than one value: two capabilities asked for in one request do not share
+  a fate. `HostedSkipped` is the state worth having - a provider can accept a
+  search tool and then answer from the model's own memory, and the two answers
+  are identical from the outside.
+- `HostedReport.Calls` carries how many times the provider ran the capability.
+  Hosted work is billed apart from tokens, so this is the only place the cost
+  of a request shows up; `Usage` stays token-only and comparable.
+- `HostedRequired` turns "the model may search" into "the answer must come from
+  a search", with `ErrHostedRequired` when it did not.
+- `Citation`, `Text.Citations` and `Response.Citations` carry the sources
+  behind an answer, attached to the text they support. An answer from a search
+  that cannot be checked against its sources is worth less than no answer.
+- `Chunk.Citations` and `Chunk.Hosted` give a stream what `Generate` has.
+- `ErrNoHosted` for a provider that cannot run the capability, or cannot run it
+  under the constraints given, and `ErrFormatWithHosted` for one that cannot
+  combine it with a structured format. Neither is emulated: unlike a format, a
+  search cannot be asked for in the prompt, because a driver has no search
+  engine of its own.
+- `Request.HostedByKind` and `Request.HostedReports` so that the drivers agree
+  on what a report means instead of each deciding separately.
+
+### Fixed
+- The JSON encoding of a `Response` no longer drops `Format`. A stored answer
+  that has lost the fact that its format was only asked for reads as a stronger
+  answer than it is; `Hosted` and `Citations` round-trip for the same reason.
+  All three are omitted when unset, so a response that asked for nothing
+  encodes exactly the bytes it did before.
+
+### Changed
+- `Request.Validate` rejects an unknown hosted kind or policy, and the same
+  kind requested twice.
+
 ## [0.4.1] - 2026-08-05
 
 ### Documentation
