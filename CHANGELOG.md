@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-08-11
+
+Minor release: ask a driver what it can do, and catch a strict schema before
+the provider does. Everything here is additive.
+
+### Added
+- `Capable`, an optional interface a driver may implement to describe itself,
+  with `CapabilitiesOf`, `HostedCapabilityOf` and `SupportsHosted` to read it.
+  Without it, applications keep the same knowledge as a hand-written table of
+  provider names, in as many copies as they have layers, and that table goes
+  quietly out of date the day a driver learns something new.
+- `Capabilities` reports which hosted capabilities a driver runs, which of the
+  `HostedWeb` settings it can express, whether `HostedRequired` can be honored,
+  and - through `HostedCapability.WithFormat` - whether a capability survives
+  in the same call as a structured format. That last one decides the shape of
+  a feature rather than a detail of a call: without it, a search plus a schema
+  takes two requests, with it, one.
+- `FormatCapability` answers in `FormatMode` rather than booleans, so a
+  provider that only asks the model for a schema is not recorded as one that
+  enforces it. It is the same distinction `Response.Format` already draws, and
+  it would have been lost in a bool.
+- `ValidateStrictSchema` and `ErrBadStrictSchema`. A schema is a literal, known
+  in full before the first call; a missing entry in `required` should not be
+  something the provider tells you over the network, on a live key, after a
+  deploy. It walks properties, items, prefixItems, `$defs`/`definitions` and
+  `anyOf`/`oneOf`/`allOf`, and names the path to the fault. It is deliberately
+  not part of `Request.Validate`: strictness is a provider dialect, and the
+  shared validator has no business enforcing one.
+
+### Changed
+- `Capabilities` is documented as a hint and not a permission: support depends
+  on the model, the account and the region as much as on the driver, so
+  `ErrNoHosted`, `ErrNoFormat` and `ErrFormatWithHosted` remain the source of
+  truth. A driver that does not describe itself reports nothing rather than no.
+- `ErrNoFormat` and `ErrNoHosted` now say what could not be done rather than
+  when that became known. A driver that learns of a limitation only from the
+  provider's own refusal wraps that refusal in the same sentinel, so a caller
+  degrades with one `errors.Is` either way instead of matching English prose in
+  an error message; the provider's `APIError` stays reachable with `errors.As`.
+- The package documentation states plainly that without `Format.Strict` a
+  schema is a request, and names the symptom when the model takes it as one:
+  a valid JSON reply that is the schema itself rather than data matching it.
+
 ## [1.0.0] - 2026-08-11
 
 First stable release. This package fixes the contract every driver speaks, so

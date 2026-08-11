@@ -17,10 +17,21 @@ var (
 	ErrNoSchema  = errors.New("ai: FormatJSONSchema requires a schema")
 	ErrBadSchema = errors.New("ai: format schema must be a JSON Schema object")
 
-	// ErrNoFormat is returned by a driver whose provider can neither enforce
-	// the requested format nor be asked for it in a way that is worth
-	// trusting. A driver never drops a Format quietly.
+	// ErrNoFormat is returned by a driver whose provider cannot produce the
+	// requested format: it can neither enforce it nor be asked for it in a
+	// way that is worth trusting, or the chosen model rejected it. A driver
+	// never drops a Format quietly.
+	//
+	// It says what could not be done, not when that became known. A driver
+	// that knows in advance returns it before the request leaves; one that
+	// learns from the provider's own refusal wraps that refusal in it, so a
+	// caller degrades with one errors.Is either way. The provider's original
+	// [APIError], where there was one, stays reachable with errors.As.
 	ErrNoFormat = errors.New("ai: provider cannot produce the requested format")
+
+	// ErrBadStrictSchema is returned by [ValidateStrictSchema], and by drivers
+	// that run it, when a schema cannot be enforced strictly as written.
+	ErrBadStrictSchema = errors.New("ai: strict schema is not provider-compatible")
 
 	// ErrNoText is returned by Response.JSON when the reply carried no text
 	// to decode, for example a response made up entirely of tool calls.
@@ -42,6 +53,13 @@ var (
 	// Drivers wrap it to say what exactly they could not do:
 	//
 	//	fmt.Errorf("%w: blocked domains", ai.ErrNoHosted)
+	//
+	// Like [ErrNoFormat], it says what could not be done rather than when that
+	// became known. Some providers accept the capability for one model and
+	// reject it for another, so a driver that only learns from the provider's
+	// refusal wraps that refusal in this error rather than handing back a bare
+	// [APIError] for the caller to read prose out of. The original APIError
+	// stays reachable with errors.As.
 	ErrNoHosted = errors.New("ai: provider cannot run the requested hosted capability")
 
 	// ErrHostedRequired is returned when a capability requested with

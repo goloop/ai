@@ -69,6 +69,23 @@
 // answer anyway asks again without Hosted, which is one visible if rather than
 // a silent difference in what an answer is based on.
 //
+// # Knowing before asking
+//
+// A driver may describe itself through the optional Capable interface, read
+// with CapabilitiesOf, HostedCapabilityOf and SupportsHosted:
+//
+//	if ai.SupportsHosted(client, ai.Hosted{Kind: ai.HostedWebSearch}) {
+//	    // show the "search the web" control
+//	}
+//
+// This is a hint, not a permission. Whether a request succeeds depends on the
+// model, the account and the region as much as on the driver, so ErrNoHosted
+// and ErrNoFormat stay the source of truth and a caller still handles them.
+// What Capabilities is for is the decision taken before the call: whether to
+// offer a feature at all, and whether it needs one request or two. A driver
+// that does not describe itself reports nothing rather than no, so code
+// written against this degrades to asking and handling the answer.
+//
 // # Structured output and hosted capabilities together
 //
 // Several providers refuse a strict schema and a server-side tool in the same
@@ -81,6 +98,18 @@
 // one without Hosted that reshapes that prose into the schema. It costs twice
 // and it is predictable, which is the better trade when the alternative is a
 // well-formed value that quietly does not match what was asked for.
+// HostedCapability.WithFormat says in advance which of the two a provider
+// needs.
+//
+// Format.Strict is worth its own warning. Without it a schema is a request:
+// the model is shown the shape and asked to follow it, and the classic
+// failure is a reply that is valid JSON and is the schema itself rather than
+// data matching it - nothing errors, and the result reads as an empty answer.
+// With it, providers that enforce schemas also demand that every object set
+// additionalProperties to false and list all of its properties in required; a
+// schema that forgets one is rejected by the provider, over the network, at
+// run time. ValidateStrictSchema checks those rules against a schema literal
+// before it is ever sent, and names the path to what is wrong.
 //
 // Endpoints that providers do not share (embeddings, image generation, audio,
 // files, batches, and so on) are not part of this interface. Each driver
