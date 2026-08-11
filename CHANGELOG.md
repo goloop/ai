@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-08-11
+
+Patch release.
+
+### Documentation
+- The reference covers `Capable`/`Capabilities` and `ValidateStrictSchema` -
+  the whole of v1.1.0 - which until now lived only in the godoc.
+
 ## [1.1.0] - 2026-08-11
 
 Minor release: ask a driver what it can do, and catch a strict schema before

@@ -16,6 +16,8 @@ Ukrainian version: **[DOC.UK.md](DOC.UK.md)**.
 - [Tools](#tools)
 - [Structured output](#structured-output)
 - [Hosted capabilities](#hosted-capabilities)
+- [Knowing before asking](#knowing-before-asking)
+- [Strict schemas, checked before sending](#strict-schemas-checked-before-sending)
 - [Multimodal input](#multimodal-input)
 - [Errors](#errors)
 - [For driver authors: Options and transport](#for-driver-authors-options-and-transport)
@@ -407,6 +409,68 @@ reports on the final chunk. A citation arrives in the chunk the provider
 announces it in, which is not necessarily the chunk carrying the text it
 supports, so assemble your own list rather than pairing them position by
 position.
+
+## Knowing before asking
+
+A driver may describe itself through the optional `Capable` interface, read
+with three helpers that also work on a driver that stays silent:
+
+```go
+caps := ai.CapabilitiesOf(client)                       // zero value if silent
+hc, ok := ai.HostedCapabilityOf(client, ai.HostedWebSearch)
+if ai.SupportsHosted(client, ai.Hosted{Kind: ai.HostedWebSearch}) {
+    // show the "search the web" control
+}
+```
+
+`Capabilities` answers three questions the applications were keeping as
+hand-written provider tables: which hosted capabilities a driver runs, which
+`HostedWeb` settings it accepts (a setting reported `false` is refused with
+`ErrNoHosted`, never silently widened), and - through
+`HostedCapability.WithFormat` - whether a capability survives in the same call
+as a structured format. That last one decides the shape of a feature: a
+provider that reports nothing there needs two requests, one that searches in
+prose and one that reshapes it; a provider that reports a mode does it in one.
+
+`WithFormat` and `Capabilities.Format` answer in `FormatMode`, not booleans,
+so a provider that only asks the model for a schema (`FormatEmulated`) is
+never mistaken for one that enforces it (`FormatNative`) - the same
+distinction `Response.Format` draws after the call.
+
+**It is a hint, not a permission.** Support also depends on the model, the
+account and the region, none of which this value knows. `ErrNoHosted`,
+`ErrNoFormat` and `ErrFormatWithHosted` remain the source of truth, and a
+caller still handles them. A silent driver reports nothing rather than no, so
+code written against `Capabilities` degrades to asking and handling the error.
+
+## Strict schemas, checked before sending
+
+Providers that enforce a schema strictly demand that every object set
+`additionalProperties: false` and list every property in `required`. A schema
+is a literal, fully known before the first call - and without a check, a typo
+in it is discovered as a 400 from the provider, over the network, on a live
+key, after a deploy.
+
+```go
+if err := ai.ValidateStrictSchema(schema); err != nil {
+    // ai: strict schema is not provider-compatible:
+    //   properties.stories.items: "required" is missing "placeLocal"
+}
+```
+
+It walks `properties`, `items`, `prefixItems`, `$defs`/`definitions` and
+`anyOf`/`oneOf`/`allOf`, and names the path to the fault. The openai driver
+runs it automatically when `Format.Strict` is set; calling it in a test is the
+way to catch the mistake at build time. It checks the strict-mode rules and
+nothing else - it is not a JSON Schema validator, and says nothing about
+whether the schema describes what you meant. Errors match
+`ErrBadStrictSchema` with `errors.Is`.
+
+One more wording worth knowing: without `Strict`, a schema is a request, and
+the classic failure is a reply that is valid JSON and is the schema itself
+rather than data matching it. Nothing errors; the run looks like an empty
+answer. `ValidateStrictSchema` cannot catch that - `Response.Format` reporting
+`FormatEmulated` is the signal to validate the decoded value yourself.
 
 ## Multimodal input
 
