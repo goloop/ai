@@ -12,6 +12,12 @@ type Part interface {
 // Text is a plain-text content part.
 type Text struct {
 	Text string
+
+	// Citations are the sources behind this text, when it came from a hosted
+	// capability that reports them. It is empty everywhere else, so code
+	// written before hosted capabilities existed reads exactly the same
+	// values it always did. See [Citation].
+	Citations []Citation
 }
 
 func (Text) isPart() {}

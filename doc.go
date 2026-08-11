@@ -36,6 +36,52 @@
 // itself - Response.JSON proves the reply parses, not that it matches the
 // schema.
 //
+// # Hosted capabilities
+//
+// Request.Hosted asks the provider to do work on its own side, web search
+// first among them:
+//
+//	req.Hosted = []ai.Hosted{{Kind: ai.HostedWebSearch}}
+//
+// A hosted capability is not a Tool and does not live in Request.Tools. A Tool
+// is a promise that the caller will answer a ToolUse with a ToolResult; a
+// hosted capability never comes back to the caller at all. Keeping them apart
+// is what lets a tool loop written before this existed keep working: it never
+// sees a call it does not know how to answer.
+//
+// The sources behind an answer arrive as Citation values on the Text they
+// support, and Response.Citations flattens them when only the list matters. An
+// answer from a search that cannot be checked against its sources is worth
+// less than no answer, so a driver whose provider reports sources always
+// carries them through.
+//
+// Response.Hosted reports what each requested capability actually did.
+// HostedSkipped is the state worth watching for: a provider can accept a
+// search tool and then answer from the model's own memory, and from the
+// outside the two answers are identical. A caller that cannot accept that asks
+// with Policy: ai.HostedRequired, and gets ErrHostedRequired instead of an
+// answer that was never researched.
+//
+// Not every provider can run every capability. A driver that cannot returns
+// ErrNoHosted rather than answering without the search: unlike a Format, which
+// a driver can ask for in the prompt, a search cannot be emulated, because a
+// driver has no search engine of its own. A caller who would rather have the
+// answer anyway asks again without Hosted, which is one visible if rather than
+// a silent difference in what an answer is based on.
+//
+// # Structured output and hosted capabilities together
+//
+// Several providers refuse a strict schema and a server-side tool in the same
+// call, and the ones that accept it do not all honor both. A driver that knows
+// its provider cannot combine them returns ErrFormatWithHosted before the
+// request leaves, rather than letting the provider reject it in its own words
+// or, worse, return JSON that does not match the schema.
+//
+// The way around it is two calls: one that searches and answers in prose, and
+// one without Hosted that reshapes that prose into the schema. It costs twice
+// and it is predictable, which is the better trade when the alternative is a
+// well-formed value that quietly does not match what was asked for.
+//
 // Endpoints that providers do not share (embeddings, image generation, audio,
 // files, batches, and so on) are not part of this interface. Each driver
 // exposes those as its own native methods, so the common surface stays small

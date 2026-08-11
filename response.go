@@ -29,6 +29,13 @@ type Response struct {
 	// emulated format is a request, not a guarantee, so a malformed reply is
 	// worth reading differently depending on this. See [FormatMode].
 	Format FormatMode
+
+	// Hosted reports what became of each capability [Request.Hosted] asked
+	// for, in request order. It is a list rather than one value because a
+	// request may ask for several capabilities and they do not share a fate:
+	// the model can search and skip running code in the same reply. A
+	// request that asked for nothing gets no reports. See [HostedReport].
+	Hosted []HostedReport
 }
 
 // Text returns the concatenation of all text parts in the response.
@@ -147,4 +154,17 @@ type Chunk struct {
 	Usage    *Usage
 	Done     bool
 	Raw      json.RawMessage
+
+	// Citations carries the sources a hosted capability reported, as the
+	// events announcing them arrive. It is a list because one event can name
+	// several sources. A citation is delivered in the chunk the provider
+	// reports it in, which is not necessarily the chunk carrying the text it
+	// supports, so a caller assembling a document keeps its own list rather
+	// than pairing them position by position. See [Citation].
+	Citations []Citation
+
+	// Hosted reports what each requested capability did. Drivers set it on
+	// the Done chunk, where the counts are finally known, so it mirrors
+	// [Response.Hosted] for a stream. See [HostedReport].
+	Hosted []HostedReport
 }

@@ -2,6 +2,7 @@ package ai
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 )
 
@@ -185,5 +186,22 @@ func (m FormatMode) String() string {
 		return "emulated"
 	default:
 		return "none"
+	}
+}
+
+// parseFormatMode is the inverse of String, used when a stored Response is
+// read back. An unrecognized name is an error rather than FormatNone, because
+// FormatNone claims no format was requested and that would turn an unreadable
+// value into a confident lie.
+func parseFormatMode(s string) (FormatMode, error) {
+	switch s {
+	case "", "none":
+		return FormatNone, nil
+	case "native":
+		return FormatNative, nil
+	case "emulated":
+		return FormatEmulated, nil
+	default:
+		return FormatNone, fmt.Errorf("ai: unknown format mode %q", s)
 	}
 }
