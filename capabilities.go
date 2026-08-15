@@ -29,6 +29,15 @@ type Capabilities struct {
 	// ordinary request, and whether the provider enforces them or the driver
 	// asks for them in the prompt. See [FormatCapability].
 	Format FormatCapability
+
+	// Images reports whether the driver can generate images. Image generation
+	// is not part of the shared Client interface - each driver exposes its own
+	// GenerateImage method with its own request and response types, because
+	// providers do not share the shape - so this is only a hint: it lets a UI
+	// build a "providers that can draw" list the same way it builds one for
+	// web search, without a hand-kept table that goes stale. The zero value,
+	// false, means the driver does not draw.
+	Images bool
 }
 
 // HostedCapability describes one capability a driver can run.
@@ -102,6 +111,16 @@ func CapabilitiesOf(c Client) Capabilities {
 func HostedCapabilityOf(c Client, k HostedKind) (HostedCapability, bool) {
 	h, ok := CapabilitiesOf(c).Hosted[k]
 	return h, ok
+}
+
+// SupportsImages reports whether a client claims it can generate images. It
+// mirrors [SupportsHosted]: a client that does not describe itself reports
+// false, so this answers "is this known to draw", not "is this known not to".
+// Image generation itself is a native method on each driver, not part of the
+// shared interface; this is only the hint a UI uses to decide whether to offer
+// it.
+func SupportsImages(c Client) bool {
+	return CapabilitiesOf(c).Images
 }
 
 // SupportsHosted reports whether a client claims it can run a capability as

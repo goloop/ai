@@ -137,3 +137,28 @@ func TestWithFormatKeepsTheModeDistinction(t *testing.T) {
 		t.Errorf("Format.Strict = %v, want native", got)
 	}
 }
+
+// drawingClient describes a driver that can generate images.
+type drawingClient struct{ plainClient }
+
+func (drawingClient) Capabilities() Capabilities {
+	return Capabilities{Images: true}
+}
+
+// The images hint mirrors the hosted hints: a driver that draws says so, a
+// driver that does not (or does not describe itself) reports false, so a UI can
+// build a "providers that draw" list without a hand-kept table.
+func TestSupportsImages(t *testing.T) {
+	if !SupportsImages(drawingClient{}) {
+		t.Error("a drawing driver should report Images support")
+	}
+	if SupportsImages(searchClient{}) {
+		t.Error("a driver that only searches reported image support")
+	}
+	if SupportsImages(plainClient{}) {
+		t.Error("a silent driver reported image support")
+	}
+	if CapabilitiesOf(plainClient{}).Images {
+		t.Error("the zero Capabilities claims image support")
+	}
+}

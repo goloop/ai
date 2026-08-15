@@ -86,6 +86,16 @@
 // that does not describe itself reports nothing rather than no, so code
 // written against this degrades to asking and handling the answer.
 //
+// SupportsImages answers the same kind of question for image generation:
+//
+//	if ai.SupportsImages(client) {
+//	    // offer the "generate an image" control
+//	}
+//
+// Image generation is not part of the Client interface - each driver exposes
+// its own GenerateImage with its own types, because providers do not share the
+// shape - so this hint is only what a UI needs to decide whether to offer it.
+//
 // # Structured output and hosted capabilities together
 //
 // Several providers refuse a strict schema and a server-side tool in the same

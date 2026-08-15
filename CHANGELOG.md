@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-08-15
+
+Minor release: a hint for image generation. Additive.
+
+### Added
+- `Capabilities.Images` reports whether a driver can generate images, and
+  `SupportsImages(c)` reads it - mirroring `SupportsHosted` for web search.
+  Image generation stays a native method on each driver, so the shared `Client`
+  interface does not grow; this is only the hint a UI needs to build a
+  "providers that can draw" list without a hand-kept table that goes stale. The
+  zero value is false, so a driver that does not describe itself, or does not
+  draw, reports no.
+
 ## [1.1.1] - 2026-08-11
 
 Patch release.
