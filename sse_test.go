@@ -85,6 +85,34 @@ func TestSSEEventsError(t *testing.T) {
 	}
 }
 
+// A stream of short data lines that never sends the blank line ending the
+// event must be cut off, not accumulated for as long as it keeps coming.
+func TestSSEEventsEventTooLarge(t *testing.T) {
+	line := "data: " + strings.Repeat("x", 1024) + "\n"
+	// Enough copies to pass the event limit, each far below the line limit.
+	n := maxSSEEvent/1024 + 2
+	readers := make([]io.Reader, 0, n)
+	for range n {
+		readers = append(readers, strings.NewReader(line))
+	}
+
+	var gotErr error
+	events := 0
+	for _, err := range SSEEvents(io.MultiReader(readers...)) {
+		if err != nil {
+			gotErr = err
+			break
+		}
+		events++
+	}
+	if !errors.Is(gotErr, ErrSSEEventTooLarge) {
+		t.Errorf("gotErr = %v, want ErrSSEEventTooLarge", gotErr)
+	}
+	if events != 0 {
+		t.Errorf("events = %d, want none before the error", events)
+	}
+}
+
 func TestSSEEventsEarlyStop(t *testing.T) {
 	// Consumer stops after the first event; iteration must not panic or hang.
 	n := 0

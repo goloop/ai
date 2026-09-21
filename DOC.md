@@ -554,5 +554,9 @@ for data, err := range ai.SSEEvents(resp.Body) {
 }
 ```
 
+The stream is bounded: a line over 4 MiB fails with `bufio.ErrTooLong`, and an
+event whose `data:` lines add up to more than 16 MiB before the blank line that
+ends it fails with `ErrSSEEventTooLarge`. Either error ends the iteration.
+
 These three - `Options`, `Options.Do` and `SSEEvents` - are all a driver needs
 to speak HTTP and streaming consistently with the rest of the set.

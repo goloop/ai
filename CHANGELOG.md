@@ -5,7 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - 2026-08-15
+## [1.2.1] - 2026-09-21
+
+Patch release.
+
+### Fixed
+- `SSEEvents` bounds the size of one event. The scanner capped a single line
+  at 4 MiB, but an event is any number of `data:` lines up to a blank one, and
+  a stream of short lines that never sent the blank line was accumulated for
+  as long as it kept coming. An event whose data grows past 16 MiB now ends
+  the iteration with the new `ErrSSEEventTooLarge`.
+
 
 Minor release: a hint for image generation. Additive.
 
