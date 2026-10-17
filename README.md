@@ -79,3 +79,7 @@ Full reference: **[DOC.md](DOC.md)** (Ukrainian: **[DOC.UK.md](DOC.UK.md)**).
 ## License
 
 MIT - see [LICENSE](LICENSE).
+
+## Release v1.2.2
+
+Preserve empty SSE data, cap Retry-After before converting to a duration, and avoid unnecessary text allocations.

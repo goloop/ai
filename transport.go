@@ -120,7 +120,7 @@ func retryDelay(resp *http.Response, attempt int) time.Duration {
 	const maxWait = 30 * time.Second
 	if ra := resp.Header.Get("Retry-After"); ra != "" {
 		if secs, err := strconv.Atoi(ra); err == nil && secs >= 0 {
-			return min(time.Duration(secs)*time.Second, maxWait)
+			return time.Duration(min(secs, int(maxWait/time.Second))) * time.Second
 		}
 		if t, err := http.ParseTime(ra); err == nil {
 			d := time.Until(t)

@@ -40,7 +40,21 @@ type Response struct {
 
 // Text returns the concatenation of all text parts in the response.
 func (r *Response) Text() string {
+	var first string
+	size := 0
+	count := 0
+	for _, p := range r.Parts {
+		if t, ok := p.(Text); ok && t.Text != "" {
+			first = t.Text
+			size += len(t.Text)
+			count++
+		}
+	}
+	if count <= 1 {
+		return first
+	}
 	var b strings.Builder
+	b.Grow(size)
 	for _, p := range r.Parts {
 		if t, ok := p.(Text); ok {
 			b.WriteString(t.Text)

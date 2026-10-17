@@ -42,12 +42,14 @@ func SSEEvents(r io.Reader) iter.Seq2[string, error] {
 		sc.Buffer(make([]byte, 0, 64*1024), maxSSELine)
 
 		var data strings.Builder
+		hasData := false
 		flush := func() bool {
-			if data.Len() == 0 {
+			if !hasData {
 				return true
 			}
 			s := data.String()
 			data.Reset()
+			hasData = false
 			return yield(s, nil)
 		}
 
@@ -62,16 +64,24 @@ func SSEEvents(r io.Reader) iter.Seq2[string, error] {
 			if strings.HasPrefix(line, ":") { // comment
 				continue
 			}
-			if v, ok := strings.CutPrefix(line, "data:"); ok {
+			if v, ok := strings.CutPrefix(line, "data:"); ok || line == "data" {
+				if !ok {
+					v = ""
+				}
 				v = strings.TrimPrefix(v, " ")
-				if data.Len()+1+len(v) > maxSSEEvent {
+				size := data.Len() + len(v)
+				if hasData {
+					size++
+				}
+				if size > maxSSEEvent {
 					yield("", ErrSSEEventTooLarge)
 					return
 				}
-				if data.Len() > 0 {
+				if hasData {
 					data.WriteByte('\n')
 				}
 				data.WriteString(v)
+				hasData = true
 			}
 		}
 

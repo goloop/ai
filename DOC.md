@@ -560,3 +560,7 @@ ends it fails with `ErrSSEEventTooLarge`. Either error ends the iteration.
 
 These three - `Options`, `Options.Do` and `SSEEvents` - are all a driver needs
 to speak HTTP and streaming consistently with the rest of the set.
+
+## Release v1.2.2
+
+Preserve empty SSE data, cap Retry-After before converting to a duration, and avoid unnecessary text allocations.
