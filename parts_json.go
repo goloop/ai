@@ -17,15 +17,16 @@ type partWire struct {
 	Text      string     `json:"text,omitempty"`
 	Citations []Citation `json:"citations,omitempty"`
 
-	MIME    string          `json:"media_type,omitempty"`
-	Data    []byte          `json:"data,omitempty"` // base64 in JSON
-	URL     string          `json:"url,omitempty"`
-	ID      string          `json:"id,omitempty"`
-	Name    string          `json:"name,omitempty"`
-	Input   json.RawMessage `json:"input,omitempty"` // raw JSON, not a string
-	ToolID  string          `json:"tool_use_id,omitempty"`
-	Content string          `json:"content,omitempty"`
-	IsError bool            `json:"is_error,omitempty"`
+	MIME          string            `json:"media_type,omitempty"`
+	Data          []byte            `json:"data,omitempty"` // base64 in JSON
+	URL           string            `json:"url,omitempty"`
+	ID            string            `json:"id,omitempty"`
+	Name          string            `json:"name,omitempty"`
+	Input         json.RawMessage   `json:"input,omitempty"` // raw JSON, not a string
+	ProviderState map[string]string `json:"provider_state,omitempty"`
+	ToolID        string            `json:"tool_use_id,omitempty"`
+	Content       string            `json:"content,omitempty"`
+	IsError       bool              `json:"is_error,omitempty"`
 }
 
 // partToWire converts a concrete Part into its wire form. An unknown part type
@@ -37,7 +38,7 @@ func partToWire(p Part) (partWire, error) {
 	case Image:
 		return partWire{Type: "image", MIME: v.MIME, Data: v.Data, URL: v.URL}, nil
 	case ToolUse:
-		return partWire{Type: "tool_use", ID: v.ID, Name: v.Name, Input: v.Input}, nil
+		return partWire{Type: "tool_use", ID: v.ID, Name: v.Name, Input: v.Input, ProviderState: v.ProviderState}, nil
 	case ToolResult:
 		return partWire{Type: "tool_result", ToolID: v.ID, Content: v.Content, IsError: v.IsError}, nil
 	default:
@@ -54,7 +55,7 @@ func partFromWire(w partWire) (Part, error) {
 	case "image":
 		return Image{MIME: w.MIME, Data: w.Data, URL: w.URL}, nil
 	case "tool_use":
-		return ToolUse{ID: w.ID, Name: w.Name, Input: w.Input}, nil
+		return ToolUse{ID: w.ID, Name: w.Name, Input: w.Input, ProviderState: w.ProviderState}, nil
 	case "tool_result":
 		return ToolResult{ID: w.ToolID, Content: w.Content, IsError: w.IsError}, nil
 	default:

@@ -145,7 +145,7 @@ func TestMessageJSONRoundTrip(t *testing.T) {
 	msg := Message{Role: RoleUser, Parts: []Part{
 		Text{Text: "hello"},
 		Image{MIME: "image/png", Data: []byte{1, 2, 3}},
-		ToolUse{ID: "call_1", Name: "lookup", Input: json.RawMessage(`{"q":"x"}`)},
+		ToolUse{ID: "call_1", Name: "lookup", ProviderState: map[string]string{"example": "opaque"}, Input: json.RawMessage(`{"q":"x"}`)},
 		ToolResult{ID: "call_1", Content: "done", IsError: true},
 	}}
 	data, err := json.Marshal(msg)

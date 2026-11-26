@@ -40,6 +40,10 @@ type ToolUse struct {
 	ID    string          // provider-assigned call identifier
 	Name  string          // name of the tool to invoke
 	Input json.RawMessage // arguments as a JSON object
+
+	// ProviderState holds opaque continuation data keyed by provider. Preserve
+	// it when replaying tool calls. Drivers read only their own entry.
+	ProviderState map[string]string `json:",omitempty"`
 }
 
 func (ToolUse) isPart() {}
