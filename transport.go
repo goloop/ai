@@ -3,6 +3,8 @@ package ai
 import (
 	"bytes"
 	"context"
+	"errors"
+	"io"
 	"math/rand/v2"
 	"net/http"
 	"strconv"
@@ -146,4 +148,24 @@ func backoff(attempt int) time.Duration {
 	// Equal jitter (half fixed, half random) spreads retries out so many
 	// clients that hit a 429 at once do not wake up in lockstep.
 	return d/2 + rand.N(d/2+1)
+}
+
+// DoStream sends a streaming request with the retry policy of Do. The default
+// transport applies WithTimeout while waiting for headers. The caller context
+// controls body consumption. A supplied HTTP client retains its timeout.
+func (o Options) DoStream(ctx context.Context, method, url string, body []byte, headers http.Header) (*http.Response, error) {
+	if o.HTTPClient == o.defaultClient && o.streamClient != nil {
+		o.HTTPClient = o.streamClient
+	}
+	return o.Do(ctx, method, url, body, headers)
+}
+
+// ReadResponse reads a buffered provider response with a 64 MiB limit.
+func ReadResponse(r io.Reader) ([]byte, error) {
+	const limit = 64 << 20
+	data, err := io.ReadAll(io.LimitReader(r, limit+1))
+	if len(data) > limit {
+		return nil, errors.New("provider response exceeds 64 MiB")
+	}
+	return data, err
 }

@@ -10,12 +10,14 @@ import (
 // build it from an API key and functional options with [NewOptions] and reuse
 // it for transport (see [Options.Do]).
 type Options struct {
-	APIKey     string
-	BaseURL    string
-	HTTPClient *http.Client
-	Timeout    time.Duration
-	MaxRetries int
-	Headers    http.Header
+	APIKey        string
+	BaseURL       string
+	HTTPClient    *http.Client
+	Timeout       time.Duration
+	MaxRetries    int
+	Headers       http.Header
+	streamClient  *http.Client
+	defaultClient *http.Client
 }
 
 // String renders the Options with the API key redacted, so printing a client
@@ -56,7 +58,7 @@ func WithTimeout(d time.Duration) Option {
 }
 
 // WithMaxRetries sets how many times [Options.Do] retries a request on HTTP 429
-// or 5xx responses. Zero disables retrying.
+// or 502, 503, 504 and 529 responses. Zero disables retrying.
 func WithMaxRetries(n int) Option {
 	return func(o *Options) { o.MaxRetries = n }
 }
@@ -85,6 +87,12 @@ func NewOptions(apiKey string, opts ...Option) Options {
 	}
 	if o.HTTPClient == nil {
 		o.HTTPClient = &http.Client{Timeout: o.Timeout}
+		o.defaultClient = o.HTTPClient
+		if transport, ok := http.DefaultTransport.(*http.Transport); ok {
+			streaming := transport.Clone()
+			streaming.ResponseHeaderTimeout = o.Timeout
+			o.streamClient = &http.Client{Transport: streaming}
+		}
 	}
 	return o
 }
