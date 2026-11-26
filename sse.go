@@ -35,7 +35,7 @@ var ErrSSEEventTooLarge = errors.New("ai: SSE event too large")
 // grows past 16 MiB fails with [ErrSSEEventTooLarge]. Both bound the memory a
 // stream can make the reader hold.
 //
-// The caller is responsible for closing r.
+// A leading UTF-8 BOM is ignored. The caller is responsible for closing r.
 func SSEEvents(r io.Reader) iter.Seq2[string, error] {
 	return func(yield func(string, error) bool) {
 		sc := bufio.NewScanner(r)
@@ -53,8 +53,13 @@ func SSEEvents(r io.Reader) iter.Seq2[string, error] {
 			return yield(s, nil)
 		}
 
+		first := true
 		for sc.Scan() {
 			line := strings.TrimSuffix(sc.Text(), "\r")
+			if first {
+				line = strings.TrimPrefix(line, "\ufeff")
+				first = false
+			}
 			if line == "" { // event boundary
 				if !flush() {
 					return

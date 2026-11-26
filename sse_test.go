@@ -198,3 +198,10 @@ func (r errReader) Read(p []byte) (int, error) {
 }
 
 var _ io.Reader = errReader{}
+
+func TestSSEEventsLeadingBOM(t *testing.T) {
+	got := collect(t, "\ufeffdata: first\r\n\r\ndata:\r\n\r\ndata: \ufeffbody\n\n")
+	if len(got) != 3 || got[0] != "first" || got[1] != "" || got[2] != "\ufeffbody" {
+		t.Fatalf("unexpected event data: %q", got)
+	}
+}
